@@ -17,19 +17,27 @@ namespace MyBlog.data
             this.factory = factory;
         }
 
-        public Task DeleteBlogPost(BlogPost item)
+        
+        private async Task DeleteItem(IMyBlogItem item)
         {
-            throw new NotImplementedException();
+            using var context = factory.CreateDbContext();
+            context.Remove(item);
+            await context.SaveChangesAsync();
         }
 
-        public Task DeleteCategory(Category item)
+        public async Task DeleteBlogPost(BlogPost item)
         {
-            throw new NotImplementedException();
+            await DeleteItem(item);
         }
 
-        public Task DeleteTag(Tag item)
+        public async Task DeleteCategory(Category item)
         {
-            throw new NotImplementedException();
+            await DeleteItem(item);
+        }
+
+        public async Task DeleteTag(Tag item)
+        {
+            await DeleteItem(item);
         }
 
         public async Task<BlogPost> GetBlogPost(int id)
@@ -50,39 +58,75 @@ namespace MyBlog.data
             return await context.BlogPosts.OrderByDescending(p => p.PublishDate).Skip(startIndex).Take(numberOfPosts).ToListAsync();
         }
 
-        public Task<List<Category>> GetCategories()
+        public async Task<List<Category>> GetCategories()
         {
-            throw new NotImplementedException();
+            using var context = factory.CreateDbContext();
+            return await context.Categories.ToListAsync();
         }
 
-        public Task<Category> GetCategory(int id)
+        public async Task<Category> GetCategory(int id)
         {
-            throw new NotImplementedException();
+            using var context = factory.CreateDbContext();
+            return await context.Categories.Include(p => p.BlogPosts).FirstOrDefaultAsync(c => c.Id == id);
         }
 
-        public Task<Tag> GetTag(int id)
+        public async Task<Tag> GetTag(int id)
         {
-            throw new NotImplementedException();
+            using var context = factory.CreateDbContext();
+            return await context.Tags.Include(t => t.BlogPosts).FirstOrDefaultAsync(t => t.Id == id);
         }
 
-        public Task<List<Tag>> getTags()
+        public async Task<List<Tag>> getTags()
         {
-            throw new NotImplementedException();
+            using var context = factory.CreateDbContext();
+            return await context.Tags.ToListAsync();
         }
 
-        public Task<BlogPost> SaveBlogPost(BlogPost item)
+        private async Task<IMyBlogItem> SaveItem(IMyBlogItem item)
         {
-            throw new NotImplementedException();
+            using var context = factory.CreateDbContext();
+            if (item.Id == 0)
+            {
+                context.Add(item);
+            }
+            else
+            {
+                if (item is BlogPost)
+                {
+                    var post = item as BlogPost;
+                    
+                    var currentPost = await context.BlogPosts.Include(b => b.Category).Include(b => b.Tags).FirstOrDefaultAsync(b => b.Id == post.Id);
+                    currentPost.PublishDate = post.PublishDate;
+                    currentPost.Title = post.Title;
+                    currentPost.Text = post.Text;
+
+                    var tagsIds = post.Tags.Select(t => t.Id);
+                    currentPost.Tags = context.Tags.Where(t => tagsIds.Contains(t.Id)).ToList();
+                    currentPost.Category = await context.Categories.FirstOrDefaultAsync(c => c.Id == post.Category.Id);
+                }
+                else
+                {
+                    context.Entry(item).State = EntityState.Modified;
+                }
+            }
+
+            await context.SaveChangesAsync();
+            return item;
         }
 
-        public Task<Category> SaveCategory(Category item)
+        public async Task<BlogPost> SaveBlogPost(BlogPost item)
         {
-            throw new NotImplementedException();
+            return (await SaveItem(item)) as BlogPost;
         }
 
-        public Task<Tag> SaveTag(Tag item)
+        public async Task<Category> SaveCategory(Category item)
         {
-            throw new NotImplementedException();
+            return (await SaveItem(item)) as Category;
+        }
+
+        public async Task<Tag> SaveTag(Tag item)
+        {
+            return (await SaveItem(item)) as Tag;
         }
     }
 }
