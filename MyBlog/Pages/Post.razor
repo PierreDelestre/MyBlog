@@ -1,0 +1,22 @@
+﻿@page "/post/{BlogPostId:int}"
+@inject IMyBlogAPI api
+@inject NavigationManager navman
+
+@if (BlogPost != null)
+{
+    <Title Value="@BlogPost.Title"></Title>
+    <h3>@BlogPost.Title</h3>
+    @((MarkupString)BlogPost.Text)
+}
+
+@code {
+    [Parameter]
+    public int BlogPostId { get; set; }
+    public BlogPost BlogPost { get; set; }
+
+    protected async override Task OnParametersSetAsync()
+    {
+        BlogPost = await api.GetBlogPost(BlogPostId);
+        await base.OnParametersSetAsync();
+    }
+}
